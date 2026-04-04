@@ -25,3 +25,17 @@ def list_files(path: str) -> list[str]:
             files.append(full_path)
 
     return files
+
+
+def adjust_description(description: str) -> str:
+    """
+    Remove espaços redundantes de uma string de descrição.
+
+    Args:
+        description (str): A string de descrição a ser ajustada.
+
+    Returns:
+        str: A string com espaços internos normalizados.
+    """
+
+    return " ".join(description.split())

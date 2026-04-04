@@ -4,7 +4,7 @@ Tratamento de dados do Inter.
 
 import pandas as pd
 
-from ..misc import list_files
+from ..misc import list_files, adjust_description
 
 
 def to_float(num: str) -> float:
@@ -20,7 +20,12 @@ def to_float(num: str) -> float:
     Returns:
         float: Valor numérico equivalente como float (ex: 1234.56).
     """
-    return float(num.replace(".", "").replace(",", "."))
+
+    clean_str = num.replace("R$ ", "").replace(".", "").replace(",", ".")
+
+    clean_str = "".join([c for c in clean_str if c.isdigit() or c in ".-"])
+
+    return float(clean_str)
 
 
 def parse_inter_account(path: str) -> pd.DataFrame:
@@ -52,8 +57,8 @@ def parse_inter_account(path: str) -> pd.DataFrame:
 
         raw_data = pd.concat((raw_data, df))
 
+    raw_data["description"] = raw_data["description"].apply(adjust_description)
     raw_data["date_ref"] = pd.to_datetime(raw_data["date_ref"], dayfirst=True)
-
     raw_data["amount"] = raw_data["amount"].apply(to_float)
 
     raw_data["source"] = "inter_account"
@@ -66,13 +71,35 @@ def parse_inter_credit_card(path: str) -> pd.DataFrame:
     Lê e padroniza os dados de faturas de cartão de crédito do Inter.
 
     Args:
-        path (str): O caminho para o diretório contendo
-        os arquivos de fatura.
+        path (str):
+            O caminho para o diretório contendo os arquivos de fatura.
 
     Returns:
-        pd.DataFrame:
-            Um DataFrame contendo os dados padronizados,
+        pd.DataFrame: Um DataFrame contendo os dados padronizados,
             com colunas: date_ref, description, amount, source.
     """
 
-    pass
+    rename_columns = {
+        "Data": "date_ref",
+        "Lançamento": "description",
+        "Valor": "amount",
+    }
+
+    raw_data = pd.DataFrame()
+
+    for file in list_files(path):
+        df = pd.read_csv(file)
+
+        df["Lançamento"] = df["Lançamento"] + " " + df["Categoria"]
+        df = df[rename_columns.keys()]
+        df = df.rename(columns=rename_columns)
+
+        raw_data = pd.concat((raw_data, df))
+
+    raw_data["description"] = raw_data["description"].apply(adjust_description)
+    raw_data["date_ref"] = pd.to_datetime(raw_data["date_ref"], dayfirst=True)
+    raw_data["amount"] = raw_data["amount"].apply(to_float) * -1
+
+    raw_data["source"] = "inter_credit_card"
+
+    return raw_data
